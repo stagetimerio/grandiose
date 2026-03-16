@@ -46,6 +46,9 @@ export interface Sender {
   destroy: () => Promise<void>
   video: (frame: VideoFrame) => Promise<void>
   audio: (frame: AudioFrame) => Promise<void>
+  connections: () => number
+  tally: () => { onProgram: boolean, onPreview: boolean }
+  sourcename: () => string
   name: string
   groups?: string | string[]
   clockVideo: boolean
@@ -130,7 +133,7 @@ export function send(params: {
   groups?: string | string[]
   clockVideo?: boolean
   clockAudio?: boolean
-}): Sender
+}): Promise<Sender>
 
 export function routing(params: {
   name: string

@@ -67,7 +67,7 @@
                 } ],
                 "link_settings": {
                     "libraries":    [ "-Wl,-rpath,'$$ORIGIN'", "-lndi" ],
-                    "library_dirs": [ "<(ndi_dir)/lib/lnx-x64" ]
+                    "library_dirs": [ "<(ndi_dir)/lib/lnx-a64" ]
                 }
             } ],
             [ "OS == 'mac' and target_arch == 'arm64'", {
