@@ -22,8 +22,13 @@ const libs = fs.readdirSync(buildDir).filter(f => libPattern.test(f))
 if (libs.length === 0)
     throw new Error("No NDI shared library found in build/Release/")
 for (const lib of libs) {
-    const srcPath = fs.realpathSync(path.join(buildDir, lib))
-    fs.copyFileSync(srcPath, path.join(distDir, lib))
+    const srcPath = path.join(buildDir, lib)
+    /* skip dangling symlinks (e.g. libndi.so -> ndi/lib/.../libndi.so on Linux) */
+    if (!fs.existsSync(srcPath)) {
+        console.log(`  skipped ${lib} (dangling symlink)`)
+        continue
+    }
+    fs.copyFileSync(fs.realpathSync(srcPath), path.join(distDir, lib))
     console.log(`  copied ${lib}`)
 }
 
