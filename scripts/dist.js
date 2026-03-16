@@ -21,18 +21,10 @@ const libPattern = /\.(dylib|so(\.\d+)?|dll)$/
 const libs = fs.readdirSync(buildDir).filter(f => libPattern.test(f))
 if (libs.length === 0)
     throw new Error("No NDI shared library found in build/Release/")
-/* copy real files first, then recreate symlinks pointing within dist/ */
-const realFiles = libs.filter(f => !fs.lstatSync(path.join(buildDir, f)).isSymbolicLink())
-const symlinks = libs.filter(f => fs.lstatSync(path.join(buildDir, f)).isSymbolicLink())
-for (const lib of realFiles) {
-    fs.copyFileSync(path.join(buildDir, lib), path.join(distDir, lib))
+for (const lib of libs) {
+    const srcPath = fs.realpathSync(path.join(buildDir, lib))
+    fs.copyFileSync(srcPath, path.join(distDir, lib))
     console.log(`  copied ${lib}`)
-}
-for (const lib of symlinks) {
-    const target = fs.readlinkSync(path.join(buildDir, lib))
-    const targetBase = path.basename(target)
-    fs.symlinkSync(targetBase, path.join(distDir, lib))
-    console.log(`  symlinked ${lib} -> ${targetBase}`)
 }
 
 /* generate dist/index.js from root index.js with rewritten require */
