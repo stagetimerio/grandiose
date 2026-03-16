@@ -1,35 +1,48 @@
 {
-    "name":        "@stagetimerio/grandiose",
-    "version":     "0.0.4",
+    "name": "@stagetimerio/grandiose",
+    "version": "0.1.0",
     "description": "Node.js N-API native addon wrapping the NDI SDK.",
-    "homepage":    "https://github.com/stagetimerio/grandiose#readme",
-    "keywords":    [ "NDI", "video", "streaming", "napi", "native" ],
-    "author":      "Streampunk Media et al",
-    "license":     "Apache-2.0",
-    "main":        "dist/index.js",
-    "types":       "dist/index.d.ts",
-    "gypfile":     true,
-    "repository":  { "type": "git", "url": "git+https://github.com/stagetimerio/grandiose.git" },
-    "bugs":        { "url": "https://github.com/stagetimerio/grandiose/issues" },
-    "publishConfig": { "registry": "https://npm.pkg.github.com" },
+    "homepage": "https://github.com/stagetimerio/grandiose#readme",
+    "keywords": [
+        "NDI",
+        "video",
+        "streaming",
+        "napi",
+        "native"
+    ],
+    "author": "Streampunk Media et al",
+    "license": "Apache-2.0",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "gypfile": true,
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/stagetimerio/grandiose.git"
+    },
+    "bugs": {
+        "url": "https://github.com/stagetimerio/grandiose/issues"
+    },
+    "publishConfig": {
+        "registry": "https://npm.pkg.github.com"
+    },
     "dependencies": {
-        "got":              "14.6.6",
-        "mkdirp":           "3.0.1",
-        "tmp":              "0.2.5",
-        "execa":            "9.6.1",
-        "cross-zip":        "4.0.1",
-        "shelljs":          "0.10.0"
+        "got": "14.6.6",
+        "mkdirp": "3.0.1",
+        "tmp": "0.2.5",
+        "execa": "9.6.1",
+        "cross-zip": "4.0.1",
+        "shelljs": "0.10.0"
     },
     "devDependencies": {
-        "bindings":         "1.5.0",
-        "shx":              "0.4.0",
-        "vitest":           "^4.1.0"
+        "bindings": "1.5.0",
+        "shx": "0.4.0",
+        "vitest": "^4.1.0"
     },
     "scripts": {
-        "install":          "node scripts/ndi.js && node-gyp rebuild && node scripts/dist.js",
-        "build":            "node-gyp rebuild && node scripts/dist.js",
-        "dist":             "node scripts/dist.js",
-        "test":             "vitest run",
-        "clean":            "shx rm -rf ndi build dist"
+        "install": "node scripts/ndi.js && node-gyp rebuild && node scripts/dist.js",
+        "build": "node-gyp rebuild && node scripts/dist.js",
+        "dist": "node scripts/dist.js",
+        "test": "vitest run",
+        "clean": "shx rm -rf ndi build dist"
     }
 }
