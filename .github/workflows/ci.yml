@@ -6,18 +6,9 @@ on:
     branches: [main]
 
 jobs:
-  build-and-test:
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            main_only: false
-          - os: macos-latest
-            main_only: true
-          - os: windows-latest
-            main_only: true
-    runs-on: ${{ matrix.os }}
-    if: ${{ !matrix.main_only || github.event_name == 'push' }}
+  # Linux: runs on all events (cheapest runner)
+  linux:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -27,3 +18,26 @@ jobs:
       - run: npx vitest run
         env:
           LD_LIBRARY_PATH: ${{ github.workspace }}/dist
+
+  # macOS + Windows: only on pushes to main (expensive runners)
+  macos:
+    if: github.event_name == 'push'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: npm install
+      - run: npx vitest run
+
+  windows:
+    if: github.event_name == 'push'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: npm install
+      - run: npx vitest run
