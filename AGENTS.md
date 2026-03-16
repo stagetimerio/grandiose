@@ -40,6 +40,18 @@ npm run clean        # delete ndi/, build/, and dist/
 npm test             # smoke tests (verifies dist/ contents load correctly)
 ```
 
+## Publishing
+
+Published to **npmjs.com** (not GitHub Packages). The `.npmrc` in this repo
+overrides the global `~/.npmrc` GitHub Packages redirect for `@stagetimerio`.
+
+```bash
+npm publish --access public    # first publish needed --access public
+```
+
+The `"files"` field in `package.json` controls what goes in the tarball (~26kB).
+`dist/` is excluded — consumers build from source via the install script.
+
 ## Rules
 
 **Don't touch C++ unless explicitly asked.** The `src/` directory is ~1500 lines of N-API bindings. Changes there require understanding N-API lifecycle, thread safety, and the NDI SDK C API. JS, TypeScript types, build config, and install scripts are fair game.
