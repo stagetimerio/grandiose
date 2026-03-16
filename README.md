@@ -39,6 +39,24 @@ node_modules/@stagetimerio/grandiose/dist/
 
 When bundling your app (e.g. Electron), you only need to ship `dist/`. No other node_modules are required at runtime.
 
+### Electron
+
+Native addons must be rebuilt against Electron's Node headers and unpacked from the asar archive:
+
+```bash
+# Rebuild grandiose.node for Electron
+electron-rebuild -f -w @stagetimerio/grandiose
+```
+
+In your Electron Forge config (or equivalent), unpack `dist/` so the native binaries are loadable at runtime:
+
+```js
+// forge.config.js
+const asar = {
+  unpack: '**/@stagetimerio/grandiose/dist/**',
+}
+```
+
 ## Usage
 
 ### Finding sources
