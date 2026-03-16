@@ -1,6 +1,6 @@
 {
     "name":        "@stagetimerio/grandiose",
-    "version":     "0.1.0",
+    "version":     "0.0.4",
     "description": "Node.js N-API native addon wrapping the NDI SDK.",
     "homepage":    "https://github.com/stagetimerio/grandiose#readme",
     "keywords":    [ "NDI", "video", "streaming", "napi", "native" ],
@@ -22,12 +22,13 @@
         "shelljs":          "0.10.0"
     },
     "devDependencies": {
-        "shx":              "0.4.0"
+        "shx":              "0.4.0",
+        "vitest":           "^4.1.0"
     },
     "scripts": {
         "install":          "node ndi.js && node-gyp rebuild",
         "build":            "node-gyp rebuild",
-        "test":             "node scratch/scratchVersion.js",
+        "test":             "vitest run",
         "clean":            "shx rm -rf ndi build"
     }
 }
