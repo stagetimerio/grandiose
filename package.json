@@ -6,14 +6,13 @@
     "keywords":    [ "NDI", "video", "streaming", "napi", "native" ],
     "author":      "Streampunk Media et al",
     "license":     "Apache-2.0",
-    "main":        "index.js",
-    "types":       "index.d.ts",
+    "main":        "dist/index.js",
+    "types":       "dist/index.d.ts",
     "gypfile":     true,
     "repository":  { "type": "git", "url": "git+https://github.com/stagetimerio/grandiose.git" },
     "bugs":        { "url": "https://github.com/stagetimerio/grandiose/issues" },
     "publishConfig": { "registry": "https://npm.pkg.github.com" },
     "dependencies": {
-        "bindings":         "1.5.0",
         "got":              "14.6.6",
         "mkdirp":           "3.0.1",
         "tmp":              "0.2.5",
@@ -22,13 +21,15 @@
         "shelljs":          "0.10.0"
     },
     "devDependencies": {
+        "bindings":         "1.5.0",
         "shx":              "0.4.0",
         "vitest":           "^4.1.0"
     },
     "scripts": {
-        "install":          "node ndi.js && node-gyp rebuild",
-        "build":            "node-gyp rebuild",
+        "install":          "node ndi.js && node-gyp rebuild && node scripts/dist.js",
+        "build":            "node-gyp rebuild && node scripts/dist.js",
+        "dist":             "node scripts/dist.js",
         "test":             "vitest run",
-        "clean":            "shx rm -rf ndi build"
+        "clean":            "shx rm -rf ndi build dist"
     }
 }
