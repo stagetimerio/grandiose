@@ -26,7 +26,7 @@
         "vitest":           "^4.1.0"
     },
     "scripts": {
-        "install":          "node ndi.js && node-gyp rebuild && node scripts/dist.js",
+        "install":          "node scripts/ndi.js && node-gyp rebuild && node scripts/dist.js",
         "build":            "node-gyp rebuild && node scripts/dist.js",
         "dist":             "node scripts/dist.js",
         "test":             "vitest run",

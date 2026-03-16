@@ -135,6 +135,19 @@ const tmp       = require("tmp")
         shell.mv(path.join(dir1, "NDI SDK for Linux/lib/x86_64-linux-gnu/*"),           "ndi/lib/lnx-x64/")
         shell.mv(path.join(dir1, "NDI SDK for Linux/lib/aarch64-rpi4-linux-gnueabi/*"), "ndi/lib/lnx-a64/")
 
+        /*  dereference symlinks (Linux NDI SDK ships symlink chains)  */
+        for (const sub of ["lnx-x86", "lnx-x64", "lnx-a64"]) {
+            const dir = path.join("ndi", "lib", sub)
+            for (const f of fs.readdirSync(dir)) {
+                const p = path.join(dir, f)
+                if (fs.lstatSync(p).isSymbolicLink()) {
+                    const real = fs.realpathSync(p)
+                    fs.unlinkSync(p)
+                    fs.copyFileSync(real, p)
+                }
+            }
+        }
+
         /*  remove temporary files  */
         console.log("-- removing temporary files")
         shell.rm("-f", file1)

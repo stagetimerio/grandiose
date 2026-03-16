@@ -4,7 +4,7 @@ Node.js N-API native addon wrapping the NDI SDK. Used by [Stagetimer](https://st
 
 ## What This Is
 
-A bridge between Node.js and the NDI SDK C library. The C++ layer (`src/`) exposes find, receive, send, and routing via N-API. The JS layer (`index.js`) re-exports with convenience constants. `ndi.js` downloads and assembles the NDI SDK at install time. `binding.gyp` handles native compilation and copies platform-specific libs to `build/Release/`. `scripts/dist.js` assembles the final runtime output in `dist/`.
+A bridge between Node.js and the NDI SDK C library. The C++ layer (`src/`) exposes find, receive, send, and routing via N-API. The JS layer (`index.js`) re-exports with convenience constants. `scripts/ndi.js` downloads and assembles the NDI SDK at install time. `binding.gyp` handles native compilation and copies platform-specific libs to `build/Release/`. `scripts/dist.js` assembles the final runtime output in `dist/`.
 
 ## File Map
 
@@ -14,7 +14,7 @@ A bridge between Node.js and the NDI SDK C library. The C++ layer (`src/`) expos
 | `index.js` | Source JS wrapper — copied to dist/ with rewritten require |
 | `index.d.ts` | TypeScript type definitions — copied to dist/ as-is |
 | `scripts/dist.js` | Assembles dist/ from build artifacts |
-| `ndi.js` | Install script — downloads NDI SDK per platform |
+| `scripts/ndi.js` | Install script — downloads NDI SDK per platform, dereferences symlinks |
 | `binding.gyp` | node-gyp build config — compiles C++, copies libs |
 | `src/*.cc/h` | C++ N-API bindings (find, send, receive, routing, util) |
 | `scratch/` | Manual test scripts (not automated tests) |
@@ -23,7 +23,7 @@ A bridge between Node.js and the NDI SDK C library. The C++ layer (`src/`) expos
 
 ```
 npm install
-  → ndi.js          downloads NDI SDK, assembles ndi/include/ + ndi/lib/{platform}/
+  → scripts/ndi.js  downloads NDI SDK, assembles ndi/include/ + ndi/lib/{platform}/
   → node-gyp        compiles src/*.cc against ndi/include/, copies libs to build/Release/
   → scripts/dist.js copies grandiose.node + NDI lib + index.js + index.d.ts into dist/
 ```
@@ -44,9 +44,9 @@ npm test             # smoke tests (verifies dist/ contents load correctly)
 
 **Don't touch C++ unless explicitly asked.** The `src/` directory is ~1500 lines of N-API bindings. Changes there require understanding N-API lifecycle, thread safety, and the NDI SDK C API. JS, TypeScript types, build config, and install scripts are fair game.
 
-**Platform awareness.** Every change to `ndi.js` or `binding.gyp` affects 6 platform targets (win-x64, mac-x64, mac-a64, lnx-x86, lnx-x64, lnx-a64). Don't add platform-specific logic without covering all variants.
+**Platform awareness.** Every change to `scripts/ndi.js` or `binding.gyp` affects 6 platform targets (win-x64, mac-x64, mac-a64, lnx-x86, lnx-x64, lnx-a64). Don't add platform-specific logic without covering all variants.
 
-**Keep install-time dependencies minimal.** `ndi.js` runs during `npm install`. Its dependencies (`got`, `shelljs`, `tmp`, `execa`, `cross-zip`) are install-time only — they exist in `dependencies` so they're available when consumers install, but they never end up in `dist/`. Don't add dependencies for runtime use; `dist/` has zero npm dependencies.
+**Keep install-time dependencies minimal.** `scripts/ndi.js` runs during `npm install`. Its dependencies (`got`, `shelljs`, `tmp`, `execa`, `cross-zip`) are install-time only — they exist in `dependencies` so they're available when consumers install, but they never end up in `dist/`. Don't add dependencies for runtime use; `dist/` has zero npm dependencies.
 
 **TypeScript types must match runtime behavior.** The types in `index.d.ts` are hand-written, not generated. When the C++ layer exposes something, the types must reflect it. Check `index.js` exports and `src/grandiose_send.cc` (or relevant file) when updating types.
 

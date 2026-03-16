@@ -16,51 +16,13 @@ if (!fs.existsSync(nodePath))
 fs.copyFileSync(nodePath, path.join(distDir, "grandiose.node"))
 console.log("  copied grandiose.node")
 
-/* copy NDI shared libraries
-   On macOS: real files in build/Release/
-   On Linux: build/Release/ has symlinks from binding.gyp copies, so we
-   also check the ndi/ source directory for the real files.
-   Strategy: collect all lib filenames from build/Release/, then find the
-   actual file content (resolving through ndi/ if needed). */
+/* copy NDI shared libraries (.dylib, .so, .so.*, .dll) */
 const libPattern = /\.(dylib|so(\.\d+(\.\d+)*)?|dll)$/
 const libs = fs.readdirSync(buildDir).filter(f => libPattern.test(f))
 if (libs.length === 0)
     throw new Error("No NDI shared library found in build/Release/")
-
-/* find one real (non-symlink) source file to copy from */
-let srcFile = null
 for (const lib of libs) {
-    const p = path.join(buildDir, lib)
-    try {
-        const stat = fs.lstatSync(p)
-        if (stat.isFile() && !stat.isSymbolicLink()) { srcFile = p; break }
-    } catch (e) { /* skip */ }
-}
-/* if all are symlinks, look in ndi/ source directory */
-if (!srcFile) {
-    const ndiDirs = { linux: { x64: "lnx-x64", arm64: "lnx-a64", ia32: "lnx-x86" },
-                      darwin: { x64: "mac-x64", arm64: "mac-a64" },
-                      win32: { x64: "win-x64", ia32: "win-x86" } }
-    const subdir = (ndiDirs[process.platform] || {})[process.arch]
-    if (subdir) {
-        const ndiLibDir = path.join(root, "ndi", "lib", subdir)
-        if (fs.existsSync(ndiLibDir)) {
-            for (const f of fs.readdirSync(ndiLibDir)) {
-                const p = path.join(ndiLibDir, f)
-                const stat = fs.lstatSync(p)
-                if (stat.isFile() && !stat.isSymbolicLink() && libPattern.test(f)) {
-                    srcFile = p; break
-                }
-            }
-        }
-    }
-}
-if (!srcFile)
-    throw new Error("Could not find real NDI shared library file")
-
-/* copy the real file under each expected name */
-for (const lib of libs) {
-    fs.copyFileSync(srcFile, path.join(distDir, lib))
+    fs.copyFileSync(path.join(buildDir, lib), path.join(distDir, lib))
     console.log(`  copied ${lib}`)
 }
 
