@@ -15,3 +15,5 @@ jobs:
           node-version: 24
       - run: npm install
       - run: npx vitest run
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/dist
