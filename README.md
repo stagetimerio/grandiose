@@ -1,260 +1,196 @@
 # Grandiose
-[Node.js](http://nodejs.org/) native bindings to NewTek NDI(tm). For more information on NDI(tm), see:
 
-https://www.ndi.tv/
+[Node.js](https://nodejs.org/) N-API native addon wrapping the [NDI](https://ndi.video/) SDK. Find, receive, and send NDI video, audio, and metadata streams over IP networks.
 
-This module will allow a Node.JS program to find, receive and send NDI(tm) video, audio and metadata streams over IP networks. All calls a asynchronous and use Javascript promises with all of the underlying work of NDI running on separate threads from the event loop.
+All calls are asynchronous using promises, with NDI work running on separate threads from the Node.js event loop.
 
-NDI(tm) is a realisation of a grand vision for what IP media streams should and can be, hence a steampunk themed name of _gra-NDI-ose_.
+Used in production by [Stagetimer](https://stagetimer.io) for NDI output in the desktop app.
 
-Fork Information
-----------------
+## Fork Lineage
 
-This is [Dr. Ralf S. Engelschall](http://engelschall.com)'s indirect fork
-of the original [Streampunk Grandiose](https://github.com/Streampunk/grandiose) codebase.
-The differences against the original codebase are:
+This is a maintained fork with the following history:
 
-- audio frame sending support from the [rse/grandiose](https://github.com/rse/grandiose) fork.
-- ad-hoc download of NDI SDK 5.0.0 from the [rse/grandiose](https://github.com/rse/grandiose) fork.
-- portability fixes for clean compile under Windows, macOS and Linux from the [rse/grandiose](https://github.com/rse/grandiose) fork.
-- portability fixes for macOS from the [danjenkins/grandiose](https://github.com/danjenkins/grandiose) fork.
-- NDI Sender functionality from the [ianshade/grandiose](https://github.com/ianshade/grandiose) fork.
-- TypeScript type definitions from the [ianshade/grandiose](https://github.com/ianshade/grandiose) fork.
-- NDI Routing functionality from scratch.
+1. [Streampunk/grandiose](https://github.com/Streampunk/grandiose) — original implementation (find + receive)
+2. [ianshade/grandiose](https://github.com/ianshade/grandiose) — added NDI sender, TypeScript types
+3. [danjenkins/grandiose](https://github.com/danjenkins/grandiose) — macOS portability fixes
+4. [rse/grandiose](https://github.com/rse/grandiose) — consolidated forks, upgraded to NDI SDK 6, added audio send + routing
+
+All upstream repos are effectively abandoned. This fork fixes bugs, improves TypeScript types, and is actively maintained.
+
+**Changes in this fork:**
+- Fixed Linux ARM64 build (missing directory creation + incorrect library path)
+- Fixed TypeScript types for `Sender` (added `connections()`, `tally()`, `sourcename()`)
+- Post-build cleanup of NDI SDK download (~28MB dead weight removed)
+- Published as `@stagetimerio/grandiose` on GitHub Packages
 
 ## Installation
 
-Grandiose supports the Windows/x86, Windows/x64, macOS/x64, Linux/x86 and Linux/x64 platforms at this time only.
+Supported platforms: Windows (x64), macOS (x64, arm64), Linux (x64, arm64).
 
-Install [Node.js](http://nodejs.org/) for your platform. This software has been developed against the long term stable (LTS) release.
-
-On Windows, the NDI(tm) DLL requires that the Visual Studio 2013 C run-times are installed, available from:
-
-https://www.microsoft.com/en-us/download/details.aspx?id=40784
-
-Grandiose is designed to be `require`d to use from your own application to provide async processing. For example:
-
-    npm install --save grandiose
-
-## Using grandiose
-
-### Finding streams
-
-A list of all currently available NDI(tm) sources available on the current local area network (or VLAN) can be retrieved. For example, to print a list of sources to the console, try:
-
-```javascript
-const grandiose = require('grandiose');
-
-grandiose.find()
-  .then(console.log)
-  .catch(console.error);
+```
+npm install @stagetimerio/grandiose
 ```
 
-The result is an array, for example here are some local sources to machine :
+Requires [Node.js](https://nodejs.org/) LTS and a C++ toolchain for native module compilation (node-gyp). The NDI SDK is downloaded automatically during `npm install`.
+
+## Usage
+
+### Finding sources
 
 ```javascript
-[ { name: 'GINGER (Intel(R) HD Graphics 520 1)',
-    urlAddress: '169.254.82.1:5962' },
-  { name: 'GINGER (Test Pattern)',
-    urlAddress: '169.254.82.1:5961' },
-  { name: 'GINGER (TOSHIBA Web Camera - HD)',
-    urlAddress: '169.254.82.1:5963' } ]
+const grandiose = require('@stagetimerio/grandiose')
+
+const sources = await grandiose.find()
+console.log(sources)
+// [
+//   { name: 'MY-PC (OBS)', urlAddress: '192.168.1.10:5961' },
+//   { name: 'MY-PC (Test Pattern)', urlAddress: '192.168.1.10:5962' }
+// ]
 ```
 
-The find operation can be configured with an options object and a wait time in measured in milliseconds:
-
-    grandiose.find(<opts>, <wait_time>);
-
-The options are as follows:
+Options:
 
 ```javascript
-grandiose.find({
-  // Should sources on the same system be found?
-  showLocalSources: true,
-  // Show only sources in a named group. May be an array.
-  groups: "studio3",
-  // Specific IP addresses or machine names to check
-  // These are possibly on a different VLAN and not visible over MDNS
-  extraIPs: [ "192.168.1.122", "mixer.studio7.zbc.com" ]
-}) // ...
+const sources = await grandiose.find({
+  showLocalSources: true,            // include sources on this machine
+  groups: 'studio3',                 // filter by group name (string or array)
+  extraIPs: ['192.168.1.122']        // check specific IPs not visible via mDNS
+})
 ```
 
 ### Receiving streams
 
-First of all, find a stream using the method above or create an object representing a source:
-
 ```javascript
-const grandiose = require('grandiose');
-let source = { name: "<source_name>", urlAddress: "<IP-address>:<port>" };
+const source = { name: '<source_name>', urlAddress: '<ip>:<port>' }
+const receiver = await grandiose.receive({ source })
+
+// Receive 10 video frames
+for (let i = 0; i < 10; i++) {
+  const videoFrame = await receiver.video(5000) // optional timeout in ms
+  console.log(videoFrame.xres, videoFrame.yres, videoFrame.data.length)
+}
 ```
 
-In an `async` function, create a receiver as follows:
+Receiver options:
 
 ```javascript
-let receiver = await grandiose.receive({ source: source });
+const receiver = await grandiose.receive({
+  source,
+  colorFormat: grandiose.COLOR_FORMAT_BGRX_BGRA,  // default: COLOR_FORMAT_FASTEST
+  bandwidth: grandiose.BANDWIDTH_HIGHEST,          // default: BANDWIDTH_HIGHEST
+  allowVideoFields: true,                          // default: true
+  name: 'my-receiver'                              // optional
+})
 ```
 
-An example of the receiver object resolved by this promise is shown below:
+#### Video frame
 
 ```javascript
-{ embedded: [External],
-  video: [Function: video],
-  audio: [Function: audio],
-  metadata: [Function: metadata],
-  data: [Function: data],
-  source:
-   { name: 'LEMARR (Test Pattern)',
-     urlAddress: '169.254.82.1:5961' },
-  colorFormat: 100, // grandiose.COLOR_FORMAT_FASTEST
-  bandwidth: 100,   // grandiose.BANDWIDTH_HIGHEST
-  allowVideoFields: true }
+const frame = await receiver.video()
+// {
+//   type: 'video',
+//   xres: 1920, yres: 1080,
+//   frameRateN: 30000, frameRateD: 1001,
+//   fourCC: ...,
+//   pictureAspectRatio: 1.778,
+//   timestamp: [sec, nsec],       // PTP timestamp
+//   timecode: [sec, nsec],
+//   lineStrideBytes: 3840,
+//   data: <Buffer ...>
+// }
 ```
 
-The `embedded` value is the native receiver returned by the NDI(tm) SDK. The `video`, `audio`, `metadata` and `data` functions return promises to retrieve data from the source. These promises are backed by calls that are thread safe.
-
-The `colorFormat`, `bandwidth` and `allowVideoFields` parameters are those used to set up the receiver. These can be configured as options when creating the receiver as follows:
+#### Audio frame
 
 ```javascript
-let receiver = await grandiose.receive({
-  source: source, // required source parameter
-  // Preferred colour space - without and with alpha channel
-  // One of COLOR_FORMAT_RGBX_RGBA, COLOR_FORMAT_BGRX_BGRA,
-  //   COLOR_FORMAT_UYVY_RGBA, COLOR_FORMAT_UYVY_BGRA or
-  //   the default of COLOR_FORMAT_FASTEST
-  colorFormat: grandiose.COLOR_FORMAT_UYVY_RGBA,
-  // Select bandwidth level. One of grandiose.BANDWIDTH_METADATA_ONLY,
-  //   BANDWIDTH_AUDIO_ONLY, BANDWIDTH_LOWEST and the default value
-  //   of BANDWIDTH_HIGHEST
-  bandwidth: grandiose.BANDWIDTH_AUDIO_ONLY,
-  // Set to false to receive only progressive video frames
-  allowVideoFields: true, // default is true
-  // An optional name for the receiver, otherwise one will be generated
-  name: "rooftop"
-}, );
-```
-
-#### Video
-
-Request video frames from the source as follows:
-
-```javascript
-let timeout = 5000; // Optional timeout, default is 10000ms
-try {
-  for ( let x = 0 ; x < 10 ; x++) {
-    let videoFrame = await receiver.video(timeout);
-    console.log(videoFrame);
-  }
-} catch (e) { console.error(e); }
-```
-
-Here is the output associated with a video frame created by an NDI(tm) test pattern:
-
-```javascript
-{ type: 'video',
-  xres: 1920,
-  yres: 1080,
-  frameRateN: 30000,
-  frameRateD: 1001,
-  pictureAspectRatio: 1.7777777910232544, // 16:9
-  timestamp: [ 1538569443, 717845600 ], // PTP timestamp
-  frameFormatType: 1, // grandiose.FORMAT_TYPE_INTERLACED
-  timecode: [ 0, 0 ], // Measured in nanoseconds
-  lineStrideBytes: 3840,
-  data: <Buffer 80 10 80 10 80 10 80 10 ... > }
-```
-
-NDI presents 8-bit integer data for video.
-
-Note that the returned promise may be rejected if the request times out or another error occurs.
-
-The `receiver` instance will disconnect on the next garbage collection, so make sure that you don't hold onto a reference.
-
-#### Audio
-
-Audio follows a similar pattern to video, except that a couple of options are available to control for format of audio returned into Javasript.
-
-```javascript
-let timeout = 8000; // Optional timeout value in ms
-let audioFrame = await receiver.audio({
-    // One of three audio formats that NDI(tm) utilities can provide:
-    //  grandiose.AUDIO_FORMAT_INT_16_INTERLEAVED,
-    //  AUDIO_FORMAT_FLOAT_32_INTERLEAVED and the default value of
-    //  AUDIO_FORMAT_FLOAT_32_SEPARATE
-    audioFormat: grandiose.AUDIO_FORMAT_INT_16_INTERLEAVED,
-    // The audio reference level in dB. This specifies how many dB above
-    // the reference level (+4dBU) is the full range of integer audio.
-    referenceLevel: 0 // default is 0dB
-  }, timeout);
-```
-
-An example of an audio frame resolved from this promise is:
-
-```javascript
-{ type: 'audio',
-  audioFormat: 2, // grandiose.AUDIO_FORMAT_INT_16_INTERLEAVED
-  referenceLevel: 0, // 0dB above reference level
-  sampleRate: 48000, // Hz
-  channels: 4,
-  samples: 4800, // Number of samples in this frame
-  channelStrideInBytes: 9600, // number of bytes per channel in buffer
-  timestamp: [ 1538578787, 132614500 ], // PTP timestamp
-  timecode: [ 0, 800000000 ], // timecode as PTP value
-  data: <Buffer 00 00 00 00 00 00 00 00 89 0a 89 0a 89 0a 89 0 ... > }
+const frame = await receiver.audio({
+  audioFormat: grandiose.AUDIO_FORMAT_FLOAT_32_SEPARATE,  // default
+  referenceLevel: 0                                       // dB above +4dBU
+}, 5000)
+// {
+//   type: 'audio',
+//   sampleRate: 48000, channels: 2, samples: 4800,
+//   channelStrideInBytes: 9600,
+//   timestamp: [sec, nsec],
+//   data: <Buffer ...>
+// }
 ```
 
 #### Metadata
 
-Follows a similar pattern to video and audio, waiting for any metadata messages in the stream.
-
 ```javascript
-let metadataFrame = await receiver.metadata();
+const frame = await receiver.metadata()
+// { data: '<ndi_product ...>' }  // XML string
 ```
-
-Result is an object with a data property that is string containing the metadata, expected to be a short XML document.
 
 #### Next available data
 
-A means to receive the next available data payload in the stream, whether that is video, audio or metadata, allowing the application to filter the streams as required based on the `type` parameter. The optional arguments used for audio can also be used here.
+Receive whichever frame type arrives next:
 
 ```javascript
-let dataFrame = await receiver.data();
-if (dataFrame.type == 'video') { /* Process just the video */ }
-else if (dataFrame.type == 'metadata') { console.log(dataFrame.data); }
+const frame = await receiver.data()
+if (frame.type === 'video') { /* ... */ }
+else if (frame.type === 'audio') { /* ... */ }
+else if (frame.type === 'metadata') { /* ... */ }
 ```
 
 ### Sending streams
 
-To follow.
+```javascript
+const sender = await grandiose.send({
+  name: 'My App',         // NDI source name (hostname is prepended automatically)
+  clockVideo: true,        // let NDI handle frame timing
+  clockAudio: false
+})
 
-### Other
+// Send a video frame
+await sender.video({
+  xres: 1920,
+  yres: 1080,
+  frameRateN: 30000,
+  frameRateD: 1001,
+  fourCC: grandiose.FOURCC_BGRA,
+  data: bgraBuffer
+})
 
-To find out the version of NDI(tm), use:
+// Check connected receivers
+const count = sender.connections()  // sync, returns number
 
-    grandiose.version(); // e.g. 'NDI SDK WIN64 00:29:47 Jun 26 2018 3.5.9.0'
+// Get tally state (program/preview)
+const tally = sender.tally()
+// { onProgram: true, onPreview: false }
 
-To check if the installed CPU is supported for NDI(tm), use:
+// Get the full NDI source name (including hostname)
+const name = sender.sourcename()
+// 'MY-PC (My App)'
 
-    grandiose.isSupportedCPU(); // e.g. true
+// Clean up
+await sender.destroy()
+```
 
-## Status, support and further development
+### Routing
 
-Support for sending streams is in progress. Support for x86, Mac and Linux platforms is being considered.
+```javascript
+const router = await grandiose.routing({ name: 'My Router' })
+const sources = await grandiose.find()
+router.change(sources[0])   // route a source
+router.connections()         // number of receivers
+router.sourcename()          // full NDI name
+router.clear()               // stop routing
+await router.destroy()
+```
 
-Although the architecture of grandiose is such that it could be used at scale in production environments, development is not yet complete. In its current state, it is recommended that this software is used in development environments and for building prototypes. Future development will make this more appropriate for production use.
+### Utilities
 
-Contributions can be made via pull requests and will be considered by the author on their merits. Enhancement requests and bug reports should be raised as github issues. For support, please contact [Streampunk Media](http://www.streampunk.media/).
+```javascript
+grandiose.version()        // NDI SDK version string
+grandiose.isSupportedCPU() // true if CPU supports NDI
+```
 
 ## License
 
-Apart from the exceptions in the following section, this software is released under the Apache 2.0 license. Copyright 2018 Streampunk Media Ltd.
+Apache 2.0. Copyright 2018 Streampunk Media Ltd, with subsequent modifications by contributors.
 
-### License exceptions
+The NDI SDK libraries are provided under a royalty-free license from NDI (formerly NewTek, Inc.). Header files are MIT-licensed. Runtime libraries are covered by the NDI SDK license.
 
-The software uses libraries provided under a royalty-free license from NewTek, Inc..
-
-* The `include` files are licensed separately by a NewTek under the MIT license.
-* The DLL and library are provided for convenience of installation and are covered by the NewTek license contained in the `lib` folder.
-
-## Trademarks
-
-NDI(tm) is a trademark of NewTek, Inc..
+NDI is a trademark of Vizrt Group.
