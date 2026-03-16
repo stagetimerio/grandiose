@@ -10,7 +10,13 @@
         "napi",
         "native"
     ],
-    "author": "Streampunk Media et al",
+    "author": "Lukas Hermann <lukas@stagetimer.io>",
+    "contributors": [
+        "Dr. Ralf S. Engelschall <rse@engelschall.com> (NDI SDK 6, audio send, routing)",
+        "Ian Shade (NDI sender, TypeScript types)",
+        "Dan Jenkins (macOS fixes)",
+        "Streampunk Media (original implementation)"
+    ],
     "license": "Apache-2.0",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
