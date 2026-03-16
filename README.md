@@ -15,13 +15,7 @@ This is a maintained fork with the following history:
 3. [danjenkins/grandiose](https://github.com/danjenkins/grandiose) — macOS portability fixes
 4. [rse/grandiose](https://github.com/rse/grandiose) — consolidated forks, upgraded to NDI SDK 6, added audio send + routing
 
-All upstream repos are effectively abandoned. This fork fixes bugs, improves TypeScript types, and is actively maintained.
-
-**Changes in this fork:**
-- Fixed Linux ARM64 build (missing directory creation + incorrect library path)
-- Fixed TypeScript types for `Sender` (added `connections()`, `tally()`, `sourcename()`)
-- Post-build cleanup of NDI SDK download (~28MB dead weight removed)
-- Published as `@stagetimerio/grandiose` on GitHub Packages
+All upstream repos are effectively abandoned. This fork fixes bugs, improves TypeScript types, and is actively maintained. See [CHANGELOG.md](CHANGELOG.md) for details.
 
 ## Installation
 
