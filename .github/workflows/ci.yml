@@ -11,15 +11,13 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            # always run Linux (cheapest)
+            main_only: false
           - os: macos-latest
-            # only on main (10x minute multiplier)
-            main-only: true
+            main_only: true
           - os: windows-latest
-            # only on main (2x minute multiplier)
-            main-only: true
+            main_only: true
     runs-on: ${{ matrix.os }}
-    if: ${{ !matrix.main-only || github.event_name == 'push' }}
+    if: ${{ !matrix.main_only || github.event_name == 'push' }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
