@@ -27,6 +27,18 @@ npm install @stagetimerio/grandiose
 
 Requires [Node.js](https://nodejs.org/) LTS and a C++ toolchain for native module compilation (node-gyp). The NDI SDK is downloaded automatically during `npm install`.
 
+After install, the `dist/` folder contains everything needed at runtime:
+
+```
+node_modules/@stagetimerio/grandiose/dist/
+  index.js           # JS entry point
+  index.d.ts         # TypeScript types
+  grandiose.node     # compiled native addon
+  libndi.dylib       # NDI shared library (platform-specific)
+```
+
+When bundling your app (e.g. Electron), you only need to ship `dist/`. No other node_modules are required at runtime.
+
 ## Usage
 
 ### Finding sources
