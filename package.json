@@ -21,15 +21,19 @@
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "gypfile": true,
+    "files": [
+        "src/",
+        "scripts/",
+        "index.js",
+        "index.d.ts",
+        "binding.gyp"
+    ],
     "repository": {
         "type": "git",
         "url": "git+https://github.com/stagetimerio/grandiose.git"
     },
     "bugs": {
         "url": "https://github.com/stagetimerio/grandiose/issues"
-    },
-    "publishConfig": {
-        "registry": "https://npm.pkg.github.com"
     },
     "dependencies": {
         "got": "14.6.6",
