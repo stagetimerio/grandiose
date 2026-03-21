@@ -1,6 +1,6 @@
 {
     "name": "@stagetimerio/grandiose",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Node.js N-API native addon wrapping the NDI SDK.",
     "homepage": "https://github.com/stagetimerio/grandiose#readme",
     "keywords": [
