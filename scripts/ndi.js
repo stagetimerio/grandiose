@@ -98,7 +98,7 @@ const tmp       = require("tmp")
         shell.mkdir("-p", "ndi/lib/mac-a64")
         shell.mkdir("-p", "ndi/lib/mac-x64")
         shell.mv(path.join(dir1, "NDI SDK for Apple/include/*.h"), "ndi/include/")
-        shell.mv(path.join(dir1, "NDI SDK for Apple/lib/macOS/*.dylib"), "ndi/lib/mac-a64/")
+        shell.cp(path.join(dir1, "NDI SDK for Apple/lib/macOS/*.dylib"), "ndi/lib/mac-a64/")
         shell.mv(path.join(dir1, "NDI SDK for Apple/lib/macOS/*.dylib"), "ndi/lib/mac-x64/")
 
         /*  remove temporary files  */
