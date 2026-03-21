@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1
+
+### Fixed
+- macOS: `ndi.js` moved dylibs to `mac-a64` first, leaving `mac-x64` empty — x64 builds failed with missing `libndi.dylib`
+
 ## 0.1.0
 
 First release under `@stagetimerio/grandiose`. Based on [rse/grandiose](https://github.com/rse/grandiose) v0.0.4.
