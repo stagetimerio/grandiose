@@ -114,11 +114,18 @@ export const enum Bandwidth {
   Highest = 100
 }
 
-export function find(params: {
+export interface Finder {
+  embedded: unknown
+  sources: () => Source[]
+  wait: (timeout?: number) => boolean
+  destroy: () => Promise<void>
+}
+
+export function find(params?: {
   showLocalSources?: boolean
   groups?: string | string[]
   extraIPs?: string | string[]
-}): Promise<Source[]>
+}): Promise<Finder>
 
 export function receive(params: {
   source: Source

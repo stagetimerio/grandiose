@@ -61,26 +61,49 @@ const asar = {
 
 ### Finding sources
 
+`grandiose.find()` returns a **finder object**, not a source list directly. NDI discovery runs asynchronously over mDNS, so you call `wait()` to block until sources appear (or a timeout), then `sources()` to read the current list.
+
 ```javascript
 const grandiose = require('@stagetimerio/grandiose')
 
-const sources = await grandiose.find()
+const finder = await grandiose.find()
+finder.wait(5000)  // block up to 5s waiting for discovery
+
+const sources = finder.sources()
 console.log(sources)
 // [
 //   { name: 'MY-PC (OBS)', urlAddress: '192.168.1.10:5961' },
 //   { name: 'MY-PC (Test Pattern)', urlAddress: '192.168.1.10:5962' }
 // ]
+
+await finder.destroy()  // always clean up
 ```
 
 Options:
 
 ```javascript
-const sources = await grandiose.find({
+const finder = await grandiose.find({
   showLocalSources: true,            // include sources on this machine
   groups: 'studio3',                 // filter by group name (string or array)
   extraIPs: ['192.168.1.122']        // check specific IPs not visible via mDNS
 })
 ```
+
+For a long-running app, keep the finder alive and poll — sources come and go as devices join or leave the network:
+
+```javascript
+const finder = await grandiose.find({ showLocalSources: true })
+setInterval(() => {
+  finder.wait(1000)
+  console.log(finder.sources())
+}, 1000)
+```
+
+Finder methods:
+
+- `finder.sources()` — returns the current `Source[]` (may be empty if discovery hasn't found anything yet).
+- `finder.wait(timeout = 10000)` — blocks up to `timeout` ms; returns `true` if the source list changed, `false` on timeout.
+- `finder.destroy()` — releases the native finder; always `await` this when you're done.
 
 ### Receiving streams
 
@@ -196,7 +219,12 @@ await sender.destroy()
 
 ```javascript
 const router = await grandiose.routing({ name: 'My Router' })
-const sources = await grandiose.find()
+
+const finder = await grandiose.find()
+finder.wait(5000)
+const sources = finder.sources()
+await finder.destroy()
+
 router.change(sources[0])   // route a source
 router.connections()         // number of receivers
 router.sourcename()          // full NDI name

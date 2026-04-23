@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Docs: `find()` returns a finder object (`{ embedded, sources, wait, destroy }`), not a `Source[]`. README and TypeScript types were both wrong — consumers following the docs got an empty result. No code change; API was already correct.
+
 ## 0.1.1
 
 ### Fixed
