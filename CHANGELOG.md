@@ -1,9 +1,20 @@
 # Changelog
 
-## Unreleased
+## 0.1.2
 
 ### Fixed
 - Docs: `find()` returns a finder object (`{ embedded, sources, wait, destroy }`), not a `Source[]`. README and TypeScript types were both wrong — consumers following the docs got an empty result. No code change; API was already correct.
+- Docs: `sender.tally()` returns `{ changed, on_program, on_preview }`, not `{ onProgram, onPreview }` (README and types both incorrectly camelCased the fields).
+- Docs: `sender.video()` requires `pictureAspectRatio`, `frameFormatType`, and `lineStrideBytes` — the README example omitted all three, so following it threw `"pictureAspectRatio value must be a number"`.
+- Docs: `receiver.metadata()` resolves to `{ type, length, timecode, data }` (README previously showed only `{ data }`).
+- Docs: `receiver.data()` can also resolve to `{ type: 'statusChange' }` or `{ type: 'sourceChange' }`, and rejects with `"Connection lost"` when the remote source disappears.
+- Types: `Sender.groups` removed — the native send path has `groups` parsing commented out, so the option was silently ignored. README now calls this out explicitly.
+- Types: `receive()` and `routing()` now correctly return `Promise<Receiver>` / `Promise<Routing>` (were declared synchronous).
+- Types: added `FOURCC_FLTp` (1884572742), `MetadataFrame`, `VideoSendFrame`/`AudioSendFrame` (send-side field names differ from receive), and `ReceivedFrame` union with status/source change events.
+
+### Added
+- Docs: `sender.audio()` example (missing from previous README). Field names are intentionally asymmetric with receive (`noChannels` vs `channels`, etc.).
+- Docs: optional `metadata` field on video and audio receive frames, `frameFormatType` on video receive frames, `audioFormat`/`timecode`/conditional `referenceLevel` on audio receive frames.
 
 ## 0.1.1
 

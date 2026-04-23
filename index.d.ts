@@ -1,13 +1,14 @@
 export interface AudioFrame {
   type: 'audio'
   audioFormat: AudioFormat
-  referenceLevel: number
+  referenceLevel?: number // present only when audioFormat is Int16Interleaved
   sampleRate: number // Hz
   channels: number
   samples: number
   channelStrideInBytes: number
   timestamp: [number, number] // PTP timestamp
   timecode: [number, number] // timecode as PTP value
+  metadata?: string // present when sender attaches metadata
   data: Buffer
 }
 
@@ -23,44 +24,88 @@ export interface VideoFrame {
   frameFormatType: FrameType
   timecode: [ number, number ] // Measured in nanoseconds
   lineStrideBytes: number
+  metadata?: string // present when sender attaches metadata
   data: Buffer
+}
+
+export interface MetadataFrame {
+  type: 'metadata'
+  length: number
+  timecode: [number, number]
+  data: string
+}
+
+export interface StatusChangeEvent { type: 'statusChange' }
+export interface SourceChangeEvent { type: 'sourceChange' }
+
+export type ReceivedFrame =
+  | VideoFrame
+  | AudioFrame
+  | MetadataFrame
+  | StatusChangeEvent
+  | SourceChangeEvent
+
+export interface VideoSendFrame {
+  xres: number
+  yres: number
+  frameRateN: number
+  frameRateD: number
+  fourCC: FourCC
+  pictureAspectRatio: number
+  frameFormatType: FrameType
+  lineStrideBytes: number
+  data: Buffer
+  timecode?: number | bigint // omitted = NDI synthesizes
+}
+
+export interface AudioSendFrame {
+  sampleRate: number
+  noChannels: number
+  noSamples: number
+  channelStrideBytes: number
+  fourCC: FourCC
+  data: Buffer
+  timecode?: number | bigint
 }
 
 export interface Receiver {
   embedded: unknown
   video: (timeout?: number) => Promise<VideoFrame>
-  audio: (params: {
-    audioFormat: AudioFormat
-    referenceLevel: number
+  audio: (params?: {
+    audioFormat?: AudioFormat
+    referenceLevel?: number
   }, timeout?: number) => Promise<AudioFrame>
-  metadata: any
-  data: any
+  metadata: (timeout?: number) => Promise<MetadataFrame>
+  data: (params?: {
+    audioFormat?: AudioFormat
+    referenceLevel?: number
+  }, timeout?: number) => Promise<ReceivedFrame>
   source: Source
   colorFormat: ColorFormat
   bandwidth: Bandwidth
   allowVideoFields: boolean
+  name?: string
 }
 
 export interface Sender {
   embedded: unknown
   destroy: () => Promise<void>
-  video: (frame: VideoFrame) => Promise<void>
-  audio: (frame: AudioFrame) => Promise<void>
+  video: (frame: VideoSendFrame) => Promise<void>
+  audio: (frame: AudioSendFrame) => Promise<void>
   connections: () => number
-  tally: () => { onProgram: boolean, onPreview: boolean }
+  tally: () => { changed: boolean, on_program: boolean, on_preview: boolean }
   sourcename: () => string
   name: string
-  groups?: string | string[]
   clockVideo: boolean
   clockAudio: boolean
 }
 
 export interface Routing {
-  name: string
+  name?: string
   groups?: string
   embedded: unknown
   destroy: () => Promise<void>
-  change: (Source) => number
+  change: (source: Source) => boolean
   clear: () => boolean
   connections: () => number
   sourcename: () => string
@@ -98,7 +143,8 @@ export const enum FourCC {
   BGRA = 1095911234,
   BGRX = 1481787202,
   RGBA = 1094862674,
-  RGBX = 1480738642
+  RGBX = 1480738642,
+  FLTp = 1884572742
 }
 
 export const enum AudioFormat {
@@ -133,17 +179,16 @@ export function receive(params: {
   bandwidth?: Bandwidth
   allowVideoFields?: boolean
   name?: string
-}): Receiver
+}): Promise<Receiver>
 
 export function send(params: {
   name: string
-  groups?: string | string[]
   clockVideo?: boolean
   clockAudio?: boolean
 }): Promise<Sender>
 
 export function routing(params: {
-  name: string
-  groups?: string | string[]
-}): Routing
+  name?: string
+  groups?: string
+}): Promise<Routing>
 

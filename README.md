@@ -140,9 +140,11 @@ const frame = await receiver.video()
 //   frameRateN: 30000, frameRateD: 1001,
 //   fourCC: ...,
 //   pictureAspectRatio: 1.778,
-//   timestamp: [sec, nsec],       // PTP timestamp
+//   frameFormatType: grandiose.FORMAT_TYPE_PROGRESSIVE,
+//   timestamp: [sec, nsec],        // PTP timestamp
 //   timecode: [sec, nsec],
 //   lineStrideBytes: 3840,
+//   metadata: '<ndi_...>',          // optional, present when sender attaches it
 //   data: <Buffer ...>
 // }
 ```
@@ -152,52 +154,85 @@ const frame = await receiver.video()
 ```javascript
 const frame = await receiver.audio({
   audioFormat: grandiose.AUDIO_FORMAT_FLOAT_32_SEPARATE,  // default
-  referenceLevel: 0                                       // dB above +4dBU
+  referenceLevel: 20                                      // dB above +4dBU (int16 only)
 }, 5000)
 // {
 //   type: 'audio',
+//   audioFormat: grandiose.AUDIO_FORMAT_FLOAT_32_SEPARATE,
 //   sampleRate: 48000, channels: 2, samples: 4800,
 //   channelStrideInBytes: 9600,
 //   timestamp: [sec, nsec],
+//   timecode: [sec, nsec],
+//   referenceLevel: 20,             // only present when audioFormat is INT_16_INTERLEAVED
+//   metadata: '<ndi_...>',          // optional, present when sender attaches it
 //   data: <Buffer ...>
 // }
 ```
+
+`referenceLevel` only affects `AUDIO_FORMAT_INT_16_INTERLEAVED` (controls the float-to-int gain). It's ignored for the float formats.
 
 #### Metadata
 
 ```javascript
 const frame = await receiver.metadata()
-// { data: '<ndi_product ...>' }  // XML string
+// {
+//   type: 'metadata',
+//   length: 42,
+//   timecode: [sec, nsec],
+//   data: '<ndi_product ...>'       // XML string
+// }
 ```
 
 #### Next available data
 
-Receive whichever frame type arrives next:
+`receiver.data()` resolves with whichever frame type arrives next — video, audio, metadata, or a connection event:
 
 ```javascript
 const frame = await receiver.data()
-if (frame.type === 'video') { /* ... */ }
-else if (frame.type === 'audio') { /* ... */ }
-else if (frame.type === 'metadata') { /* ... */ }
+switch (frame.type) {
+  case 'video':        /* VideoFrame — see above */ break
+  case 'audio':        /* AudioFrame — see above */ break
+  case 'metadata':     /* MetadataFrame — see above */ break
+  case 'statusChange': /* remote source's status changed */ break
+  case 'sourceChange': /* remote source itself changed */ break
+}
 ```
+
+The returned promise rejects with a `"Connection lost"` error when the remote source disappears.
 
 ### Sending streams
 
 ```javascript
 const sender = await grandiose.send({
-  name: 'My App',         // NDI source name (hostname is prepended automatically)
-  clockVideo: true,        // let NDI handle frame timing
-  clockAudio: false
+  name: 'My App',          // NDI source name (hostname is prepended automatically)
+  clockVideo: true,        // let NDI handle video frame timing (default: false)
+  clockAudio: false        // let NDI handle audio frame timing (default: false)
 })
 
-// Send a video frame
+// Send a video frame — all fields below are required except timecode
 await sender.video({
   xres: 1920,
   yres: 1080,
   frameRateN: 30000,
   frameRateD: 1001,
   fourCC: grandiose.FOURCC_BGRA,
-  data: bgraBuffer
+  pictureAspectRatio: 16 / 9,
+  frameFormatType: grandiose.FORMAT_TYPE_PROGRESSIVE,
+  lineStrideBytes: 1920 * 4,   // BGRA = 4 bytes per pixel
+  data: bgraBuffer,
+  // timecode: BigInt(...)     // optional; omitted = NDI synthesizes one
+})
+
+// Send an audio frame (32-bit float, channel-separate — the NDI native format)
+// Note: send-side field names differ from receive (noChannels/noSamples/channelStrideBytes)
+await sender.audio({
+  sampleRate: 48000,
+  noChannels: 2,
+  noSamples: 1024,
+  channelStrideBytes: 1024 * 4,   // 4 bytes per float sample
+  fourCC: grandiose.FOURCC_FLTp,
+  data: floatBuffer,
+  // timecode: BigInt(...)         // optional
 })
 
 // Check connected receivers
@@ -205,7 +240,7 @@ const count = sender.connections()  // sync, returns number
 
 // Get tally state (program/preview)
 const tally = sender.tally()
-// { onProgram: true, onPreview: false }
+// { changed: true, on_program: true, on_preview: false }
 
 // Get the full NDI source name (including hostname)
 const name = sender.sourcename()
@@ -214,6 +249,8 @@ const name = sender.sourcename()
 // Clean up
 await sender.destroy()
 ```
+
+Note: the `groups` option is not currently implemented on the sender — passing it has no effect. File an issue if you need it.
 
 ### Routing
 
