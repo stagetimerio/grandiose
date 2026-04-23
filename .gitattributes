@@ -1,0 +1,14 @@
+# Default: normalize text files to LF in the repo and on checkout,
+# on all platforms. git detects binary content via its own heuristic.
+* text=auto eol=lf
+
+# Explicit binary types — don't touch line endings or attempt to diff.
+*.node binary
+*.dylib binary
+*.dll binary
+*.so binary
+*.lib binary
+*.zip binary
+*.png binary
+*.jpg binary
+*.ico binary
