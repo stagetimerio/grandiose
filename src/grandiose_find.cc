@@ -299,46 +299,78 @@ napi_value find_sources(napi_env env, napi_callback_info info) {
     return result;
 }
 
+/*  callback for executing method find.wait() off the event loop  */
+void findWaitExecute(napi_env env, void *data) {
+    findWaitCarrier *c = (findWaitCarrier *)data;
+    c->result = NDIlib_find_wait_for_sources(c->find, c->wait);
+}
+
+/*  callback for completing method find.wait()  */
+void findWaitComplete(napi_env env, napi_status asyncStatus, void *data) {
+    findWaitCarrier *c = (findWaitCarrier *)data;
+
+    if (asyncStatus != napi_ok) {
+        c->status   = asyncStatus;
+        c->errorMsg = "Async find.wait() failed to complete.";
+    }
+    REJECT_STATUS;
+
+    napi_value result;
+    c->status = napi_get_boolean(env, c->result, &result);
+    REJECT_STATUS;
+
+    napi_status status;
+    status = napi_resolve_deferred(env, c->_deferred, result);
+    FLOATING_STATUS;
+
+    tidyCarrier(env, c);
+}
+
 /*  API method "find.wait()"  */
 napi_value find_wait(napi_env env, napi_callback_info info) {
-    napi_status status;
-   
+    findWaitCarrier *c = new findWaitCarrier;
+
+    /*  create result promise  */
+    napi_value promise;
+    c->status = napi_create_promise(env, &c->_deferred, &promise);
+    REJECT_RETURN;
+
     /*  fetch arguments  */
-    size_t argc = 2;
-    napi_value args[2];
+    size_t argc = 1;
+    napi_value args[1];
     napi_value thisValue;
-    status = napi_get_cb_info(env, info, &argc, args, &thisValue, nullptr);
-    CHECK_STATUS;
-   
+    c->status = napi_get_cb_info(env, info, &argc, args, &thisValue, nullptr);
+    REJECT_RETURN;
+
     /*  fetch embedded NDI native find object  */
     napi_value embeddedValue;
-    status = napi_get_named_property(env, thisValue, "embedded", &embeddedValue);
-    CHECK_STATUS;
+    c->status = napi_get_named_property(env, thisValue, "embedded", &embeddedValue);
+    REJECT_RETURN;
     embeddedValue_t *embeddedData;
-    status = napi_get_value_external(env, embeddedValue, (void **)&embeddedData);
-    CHECK_STATUS;
-    NDIlib_find_instance_t find = (NDIlib_find_instance_t)(embeddedData->value);
+    c->status = napi_get_value_external(env, embeddedValue, (void **)&embeddedData);
+    REJECT_RETURN;
+    c->find = (NDIlib_find_instance_t)(embeddedData->value);
 
-    /*  handle optional "wait" argument  */
-    uint32_t wait = 10000;
-    if (argc == 2) {
+    /*  handle optional timeout argument  */
+    if (argc >= 1) {
         napi_valuetype type;
-        status = napi_typeof(env, args[1], &type);
-        CHECK_STATUS;
+        c->status = napi_typeof(env, args[0], &type);
+        REJECT_RETURN;
         if (type == napi_number) {
-            status = napi_get_value_uint32(env, args[1], &wait);
-            CHECK_STATUS;
+            c->status = napi_get_value_uint32(env, args[0], &c->wait);
+            REJECT_RETURN;
         }
     }
-   
-    /*  call NDI API functionality  */
-    bool ok = NDIlib_find_wait_for_sources(find, wait);
 
-    /*  return a boolean result  */
-    napi_value result;
-    status = napi_get_boolean(env, ok, &result);
-    CHECK_STATUS;
-    
-    return result;
+    /*  queue async work  */
+    napi_value resource_name;
+    c->status = napi_create_string_utf8(env, "FindWait", NAPI_AUTO_LENGTH, &resource_name);
+    REJECT_RETURN;
+    c->status = napi_create_async_work(env, NULL, resource_name, findWaitExecute, findWaitComplete, c, &c->_request);
+    REJECT_RETURN;
+    c->status = napi_queue_async_work(env, c->_request);
+    REJECT_RETURN;
+
+    return promise;
 }
 

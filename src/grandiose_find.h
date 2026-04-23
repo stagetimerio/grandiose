@@ -38,5 +38,11 @@ struct findCarrier: carrier {
     }
 };
 
+struct findWaitCarrier: carrier {
+    NDIlib_find_instance_t find;
+    uint32_t wait = 10000;
+    bool result = false;
+};
+
 #endif /* GRANDIOSE_FIND_H */
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0
+
+### Breaking
+- `finder.wait()` is now async — returns `Promise<boolean>` instead of `boolean`. Callers must `await`. Previously the call blocked the Node.js event loop for up to the timeout (10s default), causing jitter in video pipelines. Now runs on a libuv worker thread like every other NDI call in this addon.
+
+### Fixed
+- `finder.wait(timeout)` now actually respects the `timeout` argument. The previous implementation only read it when `argc == 2`, but callers pass a single argument — the value was silently ignored and always used the 10000ms default.
+
 ## 0.1.2
 
 ### Fixed

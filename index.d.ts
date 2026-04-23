@@ -163,7 +163,7 @@ export const enum Bandwidth {
 export interface Finder {
   embedded: unknown
   sources: () => Source[]
-  wait: (timeout?: number) => boolean
+  wait: (timeout?: number) => Promise<boolean>
   destroy: () => Promise<void>
 }
 

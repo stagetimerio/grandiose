@@ -61,13 +61,13 @@ const asar = {
 
 ### Finding sources
 
-`grandiose.find()` returns a **finder object**, not a source list directly. NDI discovery runs asynchronously over mDNS, so you call `wait()` to block until sources appear (or a timeout), then `sources()` to read the current list.
+`grandiose.find()` returns a **finder object**, not a source list directly. NDI discovery runs asynchronously over mDNS, so you `await wait()` until sources appear (or a timeout), then call `sources()` to read the current list.
 
 ```javascript
 const grandiose = require('@stagetimerio/grandiose')
 
 const finder = await grandiose.find()
-finder.wait(5000)  // block up to 5s waiting for discovery
+await finder.wait(5000)  // up to 5s waiting for discovery — runs off the event loop
 
 const sources = finder.sources()
 console.log(sources)
@@ -89,20 +89,20 @@ const finder = await grandiose.find({
 })
 ```
 
-For a long-running app, keep the finder alive and poll — sources come and go as devices join or leave the network:
+For a long-running app, keep the finder alive and loop — sources come and go as devices join or leave the network:
 
 ```javascript
 const finder = await grandiose.find({ showLocalSources: true })
-setInterval(() => {
-  finder.wait(1000)
+while (true) {
+  await finder.wait(1000)
   console.log(finder.sources())
-}, 1000)
+}
 ```
 
 Finder methods:
 
-- `finder.sources()` — returns the current `Source[]` (may be empty if discovery hasn't found anything yet).
-- `finder.wait(timeout = 10000)` — blocks up to `timeout` ms; returns `true` if the source list changed, `false` on timeout.
+- `finder.sources()` — synchronous; returns the current `Source[]` (may be empty if discovery hasn't found anything yet).
+- `finder.wait(timeout = 10000)` — returns `Promise<boolean>`; resolves `true` if the source list changed, `false` on timeout. Waits off the event loop.
 - `finder.destroy()` — releases the native finder; always `await` this when you're done.
 
 ### Receiving streams
@@ -258,7 +258,7 @@ Note: the `groups` option is not currently implemented on the sender — passing
 const router = await grandiose.routing({ name: 'My Router' })
 
 const finder = await grandiose.find()
-finder.wait(5000)
+await finder.wait(5000)
 const sources = finder.sources()
 await finder.destroy()
 
