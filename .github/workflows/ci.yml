@@ -2,19 +2,49 @@ name: CI
 on:
   push:
     branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-and-test:
+  test:
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: 24
+      # libndi on Linux discovers sources through the Avahi daemon.
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y avahi-daemon libavahi-client3
+          sudo systemctl start avahi-daemon
       - run: npm install
-      - run: npx vitest run
+      - run: npm test
+
+  asan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: |
+          sudo apt-get update && sudo apt-get install -y avahi-daemon libavahi-client3
+          sudo systemctl start avahi-daemon
+      - run: npm install
+      - run: npm run build
         env:
-          LD_LIBRARY_PATH: ${{ github.workspace }}/dist
+          CXXFLAGS: -fsanitize=address -fno-omit-frame-pointer -g
+          LDFLAGS: -fsanitize=address
+      # Node is not built with ASan, so the runtime must be preloaded.
+      - run: LD_PRELOAD=$(gcc -print-file-name=libasan.so) npm test
+        env:
+          ASAN_OPTIONS: detect_leaks=0

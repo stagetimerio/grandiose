@@ -17,6 +17,7 @@ A bridge between Node.js and the NDI SDK C library. The C++ layer (`src/`) expos
 | `scripts/ndi.js` | Install script — downloads NDI SDK per platform, dereferences symlinks |
 | `binding.gyp` | node-gyp build config — compiles C++, copies libs |
 | `src/*.cc/h` | C++ N-API bindings (find, send, receive, routing, util) |
+| `test/` | Vitest suites: `smoke` (dist/), `api` (errors, lifecycle), `loopback` (real NDI send→receive) |
 | `scratch/` | Manual test scripts (not automated tests) |
 
 ## Build Pipeline
@@ -37,7 +38,7 @@ npm install          # download SDK + compile + build dist/
 npm run build        # recompile C++ + rebuild dist/ (without re-downloading SDK)
 npm run dist         # rebuild dist/ only (from existing build artifacts)
 npm run clean        # delete ndi/, build/, and dist/
-npm test             # smoke tests (verifies dist/ contents load correctly)
+npm test             # dist/ contents, API errors and lifecycle, send→receive loopback
 ```
 
 ## Publishing
@@ -54,7 +55,7 @@ The `"files"` field in `package.json` controls what goes in the tarball (~26kB).
 
 ## Rules
 
-**C++ changes need a test.** The `src/` directory is ~1500 lines of N-API bindings. Changes there require understanding N-API lifecycle, thread safety, and the NDI SDK C API. Add a case to `test/smoke.test.js` that fails without the change. Error paths count: a wrong rejection path crashes the host process. JS, TypeScript types, build config, and install scripts are fair game.
+**C++ changes need a test.** The `src/` directory is ~1500 lines of N-API bindings. Changes there require understanding N-API lifecycle, thread safety, and the NDI SDK C API. Add a case to `test/api.test.js` that fails without the change. Error paths count: a wrong rejection path crashes the host process. CI also runs the tests on an AddressSanitizer build, which catches memory errors that do not crash. JS, TypeScript types, build config, and install scripts are fair game.
 
 **Platform awareness.** Every change to `scripts/ndi.js` or `binding.gyp` affects 6 platform targets (win-x64, mac-x64, mac-a64, lnx-x86, lnx-x64, lnx-a64). Don't add platform-specific logic without covering all variants.
 
