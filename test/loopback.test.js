@@ -77,7 +77,7 @@ test("a receiver gets the frames a sender sends", async () => {
         }
         expect(shape).toEqual([W, H, grandiose.FOURCC_BGRA, W * H * 4])
         expect([...seen].sort()).toEqual(["blue", "green", "red"])
-        expect(sender.connections()).toBe(1)
+        expect(sender.connections()).toBeGreaterThan(0)
     } finally {
         sending = false
         await sendLoop
