@@ -52,29 +52,10 @@ void sendExecute(napi_env env, void* data) {
 
 /*  implicit destruction of NDI sender via garbage collection  */
 void finalizeSend(napi_env env, void* data, void* hint) {
-    /*  fetch NDI sender wrapper object  */
-    napi_value obj = (napi_value)hint;
-
-    /*  fetch NDI sender external object  */
-    napi_value sendValue;
-    if (napi_get_named_property(env, obj, "embedded", &sendValue) != napi_ok)
-        return;
-
-    /*  ensure it was still not manually destroyed  */
-    napi_valuetype result;
-    if (napi_typeof(env, sendValue, &result) != napi_ok)
-        return;
-    if (result != napi_external)
-        return;
-
-    /*  fetch NDI sender native object  */
-    void *sendData;
-    if (napi_get_value_external(env, sendValue, &sendData) != napi_ok)
-        return;
-    NDIlib_send_instance_t send = (NDIlib_send_instance_t)sendData;
-
-    /*  call the NDI API  */
-    NDIlib_send_destroy(send);
+    embeddedValue_t *embeddedValue = (embeddedValue_t *)data;
+    if (embeddedValue->value != nullptr)
+        NDIlib_send_destroy((NDIlib_send_instance_t)embeddedValue->value);
+    free(data);
 }
 
 /*  explicit destruction of NDI sender via "destroy" method  */
@@ -103,17 +84,15 @@ napi_value destroySend(napi_env env, napi_callback_info info) {
         NAPI_THROW_ERROR("NDI sender already destroyed");
     if (result == napi_external) {
         /*  fetch NDI sender native object  */
-        void *sendData;
-        c->status = napi_get_value_external(env, sendValue, &sendData);
+        embeddedValue_t *embeddedData;
+        c->status = napi_get_value_external(env, sendValue, (void **)&embeddedData);
         REJECT_RETURN;
-        NDIlib_send_instance_t send = (NDIlib_send_instance_t)sendData;
 
         /*  call the NDI API  */
-        NDIlib_send_destroy(send);
+        NDIlib_send_destroy((NDIlib_send_instance_t)embeddedData->value);
+        embeddedData->value = nullptr;
 
-        /*  overwrite the "embedded" field with a non-external value
-            (to ensure that the "finalizeSend" will no longer do anything
-            once the garbage collection fires)  */
+        /*  overwrite the "embedded" field so that later calls reject  */
         napi_value value;
         napi_create_int32(env, 0, &value);
         c->status = napi_set_named_property(env, thisValue, "embedded", value);
@@ -123,6 +102,7 @@ napi_value destroySend(napi_env env, napi_callback_info info) {
     napi_value undefined;
     napi_get_undefined(env, &undefined);
     napi_resolve_deferred(env, c->_deferred, undefined);
+    tidyCarrier(env, c);
 
     return promise;
 }
@@ -141,7 +121,9 @@ void sendComplete(napi_env env, napi_status asyncStatus, void* data) {
   REJECT_STATUS;
 
   napi_value embedded;
-  c->status = napi_create_external(env, c->send, finalizeSend, result, &embedded);
+  embeddedValue_t *embeddedValue = (embeddedValue_t *)malloc(sizeof(embeddedValue_t));
+  embeddedValue->value = c->send;
+  c->status = napi_create_external(env, embeddedValue, finalizeSend, nullptr, &embedded);
   REJECT_STATUS;
   c->status = napi_set_named_property(env, result, "embedded", embedded);
   REJECT_STATUS;
@@ -361,10 +343,10 @@ napi_value videoSend(napi_env env, napi_callback_info info) {
   napi_value sendValue;
   c->status = napi_get_named_property(env, thisValue, "embedded", &sendValue);
   REJECT_RETURN;
-  void* sendData;
-  c->status = napi_get_value_external(env, sendValue, &sendData);
-  c->send = (NDIlib_send_instance_t) sendData;
+  embeddedValue_t* sendData;
+  c->status = napi_get_value_external(env, sendValue, (void **)&sendData);
   REJECT_RETURN;
+  c->send = (NDIlib_send_instance_t) sendData->value;
 
   if (argc >= 1) {
     napi_value config;
@@ -493,10 +475,14 @@ napi_value videoSend(napi_env env, napi_callback_info info) {
     size_t length;
     c->status = napi_get_buffer_info(env, videoBuffer, &data, &length);
     REJECT_RETURN;
+    // Lower bound for every FourCC; planar formats carry more planes after it.
+    if ((int64_t) c->videoFrame.line_stride_in_bytes * c->videoFrame.yres > (int64_t) length)
+      REJECT_ERROR_RETURN(
+        "data buffer is smaller than lineStrideBytes * yres",
+        GRANDIOSE_INVALID_ARGS);
     c->videoFrame.p_data = (uint8_t*) data;
     c->status = napi_create_reference(env, videoBuffer, 1, &c->sourceBufferRef);
     REJECT_RETURN;
-    // TODO: check length
 
 
     c->status = napi_get_named_property(env, config, "fourCC", &param);
@@ -573,10 +559,10 @@ napi_value audioSend(napi_env env, napi_callback_info info) {
   napi_value sendValue;
   c->status = napi_get_named_property(env, thisValue, "embedded", &sendValue);
   REJECT_RETURN;
-  void* sendData;
-  c->status = napi_get_value_external(env, sendValue, &sendData);
-  c->send = (NDIlib_send_instance_t) sendData;
+  embeddedValue_t* sendData;
+  c->status = napi_get_value_external(env, sendValue, (void **)&sendData);
   REJECT_RETURN;
+  c->send = (NDIlib_send_instance_t) sendData->value;
 
   if (argc >= 1) {
     napi_value config;
@@ -714,10 +700,10 @@ napi_value connections(napi_env env, napi_callback_info info) {
   napi_value sendValue;
   status = napi_get_named_property(env, thisValue, "embedded", &sendValue);
   CHECK_STATUS;
-  void *sendData;
-  status = napi_get_value_external(env, sendValue, &sendData);
+  embeddedValue_t *sendData;
+  status = napi_get_value_external(env, sendValue, (void **)&sendData);
   CHECK_STATUS;
-  NDIlib_send_instance_t sender = (NDIlib_send_instance_t)sendData;
+  NDIlib_send_instance_t sender = (NDIlib_send_instance_t)sendData->value;
 
   int conns = NDIlib_send_get_no_connections(sender, 0);
   napi_value result;
@@ -739,10 +725,10 @@ napi_value tally(napi_env env, napi_callback_info info) {
   napi_value sendValue;
   status = napi_get_named_property(env, thisValue, "embedded", &sendValue);
   CHECK_STATUS;
-  void *sendData;
-  status = napi_get_value_external(env, sendValue, &sendData);
+  embeddedValue_t *sendData;
+  status = napi_get_value_external(env, sendValue, (void **)&sendData);
   CHECK_STATUS;
-  NDIlib_send_instance_t sender = (NDIlib_send_instance_t)sendData;
+  NDIlib_send_instance_t sender = (NDIlib_send_instance_t)sendData->value;
 
   NDIlib_tally_t tally;
   bool changed = NDIlib_send_get_tally(sender, &tally, 0);
@@ -777,10 +763,10 @@ napi_value sourcename(napi_env env, napi_callback_info info) {
   napi_value sendValue;
   status = napi_get_named_property(env, thisValue, "embedded", &sendValue);
   CHECK_STATUS;
-  void *sendData;
-  status = napi_get_value_external(env, sendValue, &sendData);
+  embeddedValue_t *sendData;
+  status = napi_get_value_external(env, sendValue, (void **)&sendData);
   CHECK_STATUS;
-  NDIlib_send_instance_t sender = (NDIlib_send_instance_t)sendData;
+  NDIlib_send_instance_t sender = (NDIlib_send_instance_t)sendData->value;
 
   const NDIlib_source_t *source = NDIlib_send_get_source_name(sender);
   napi_value result;

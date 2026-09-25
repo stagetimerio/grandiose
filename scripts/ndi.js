@@ -155,5 +155,6 @@ const tmp       = require("tmp")
     }
 })().catch((err) => {
     console.log(`** ERROR: ${err}`)
+    process.exitCode = 1
 })
 

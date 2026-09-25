@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Any rejected promise crashed the process (segfault) instead of rejecting. Examples: a duplicate sender name, invalid frame arguments, `video()` after `destroy()`. `rejectStatus` read the carrier after it was freed.
+- Error `code` strings were reversed (`"1004"` instead of `"4001"`).
+- `find()` without arguments rejected. It now uses the defaults, as the README shows.
+- A sender collected by the garbage collector without `destroy()` was never destroyed. It kept its NDI name until the process ended. The finalizer used a stale `napi_value` as its hint.
+- `sender.video()` rejects when `data` is smaller than `lineStrideBytes * yres`. Before, NDI read past the end of the buffer.
+- `destroy()` on a finder or sender leaked its promise carrier.
+
 ## 0.2.0
 
 ### Breaking

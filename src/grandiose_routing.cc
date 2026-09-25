@@ -39,11 +39,6 @@ napi_value routing_clear      (napi_env, napi_callback_info);
 napi_value routing_connections(napi_env, napi_callback_info);
 napi_value routing_sourcename (napi_env, napi_callback_info);
 
-/*  wrapper structure for embedded value  */
-typedef struct embeddedValue {
-    void *value;
-} embeddedValue_t;
-
 /*  callback for destroying embedded value  */
 void finalizeRouting(napi_env env, void* data, void* hint) {
     embeddedValue_t *embeddedValue = (embeddedValue_t *)data;

@@ -37,11 +37,6 @@ napi_value find_destroy    (napi_env, napi_callback_info);
 napi_value find_sources    (napi_env, napi_callback_info);
 napi_value find_wait       (napi_env, napi_callback_info);
 
-/*  wrapper structure for embedded value  */
-typedef struct embeddedValue {
-    void *value;
-} embeddedValue_t;
-
 /*  callback for destroying embedded value  */
 void finalizeFind(napi_env env, void *data, void *hint) {
     embeddedValue_t *embeddedValue = (embeddedValue_t *)data;
@@ -247,6 +242,7 @@ napi_value find_destroy(napi_env env, napi_callback_info info) {
     napi_value undefined;
     napi_get_undefined(env, &undefined);
     napi_resolve_deferred(env, c->_deferred, undefined);
+    tidyCarrier(env, c);
 
     return promise;
 }

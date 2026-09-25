@@ -117,4 +117,9 @@ bool validAudioFormat(Grandiose_audio_format_e format);
 
 napi_status makeNativeSource(napi_env env, napi_value source, NDIlib_source_t *result);
 
+// Payload of an "embedded" external. A null value means the NDI instance is already destroyed.
+typedef struct embeddedValue {
+  void *value;
+} embeddedValue_t;
+
 #endif // GRANDIOSE_UTIL_H
