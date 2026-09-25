@@ -70,7 +70,7 @@ const AUDIO_FORMAT_FLOAT_32_INTERLEAVED = 1;
 const AUDIO_FORMAT_INT_16_INTERLEAVED = 2;
 
 let find = function (...args) {
-  if (args.length === 0) return addon.find();
+  if (args.length === 0) return addon.find({});
   if (Array.isArray(args[0].groups)) {
     args[0].groups = args[0].groups.reduce((x, y) => x + ',' + y);
   }

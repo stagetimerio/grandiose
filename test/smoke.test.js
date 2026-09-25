@@ -34,3 +34,15 @@ test("NDI SDK version is returned", async () => {
     expect(typeof version).toBe("string")
     expect(version.length).toBeGreaterThan(0)
 })
+
+test("invalid arguments reject instead of crashing", async () => {
+    const grandiose = await import(path.join(distDir, "index.js"))
+    await expect(grandiose.send({})).rejects.toMatchObject({ code: "4001" })
+})
+
+test("find() without arguments resolves a finder", async () => {
+    const grandiose = await import(path.join(distDir, "index.js"))
+    const finder = await grandiose.find()
+    expect(Array.isArray(finder.sources())).toBe(true)
+    await finder.destroy()
+})

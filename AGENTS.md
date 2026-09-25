@@ -54,7 +54,7 @@ The `"files"` field in `package.json` controls what goes in the tarball (~26kB).
 
 ## Rules
 
-**Don't touch C++ unless explicitly asked.** The `src/` directory is ~1500 lines of N-API bindings. Changes there require understanding N-API lifecycle, thread safety, and the NDI SDK C API. JS, TypeScript types, build config, and install scripts are fair game.
+**C++ changes need a test.** The `src/` directory is ~1500 lines of N-API bindings. Changes there require understanding N-API lifecycle, thread safety, and the NDI SDK C API. Add a case to `test/smoke.test.js` that fails without the change. Error paths count: a wrong rejection path crashes the host process. JS, TypeScript types, build config, and install scripts are fair game.
 
 **Platform awareness.** Every change to `scripts/ndi.js` or `binding.gyp` affects 6 platform targets (win-x64, mac-x64, mac-a64, lnx-x86, lnx-x64, lnx-a64). Don't add platform-specific logic without covering all variants.
 
