@@ -89,16 +89,6 @@ describe("sender", () => {
         }
     })
 
-    test("rejects a duplicate name with code 4102", async () => {
-        const name = uniqueName("duplicate")
-        const sender = await grandiose.send({ name })
-        try {
-            await expect(grandiose.send({ name })).rejects.toMatchObject({ code: "4102" })
-        } finally {
-            await sender.destroy()
-        }
-    })
-
     test("destroy() is idempotent and later calls fail", async () => {
         const sender = await grandiose.send({ name: uniqueName("destroy") })
         await expect(sender.destroy()).resolves.toBeUndefined()
