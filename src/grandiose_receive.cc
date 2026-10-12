@@ -99,19 +99,20 @@ void receiveComplete(napi_env env, napi_status asyncStatus, void* data) {
   c->status = napi_set_named_property(env, result, "data", dataFn);
   REJECT_STATUS;
 
-  napi_value source, name, uri;
+  napi_value source, name;
   c->status = napi_create_string_utf8(env, c->source->p_ndi_name, NAPI_AUTO_LENGTH, &name);
   REJECT_STATUS;
-  if (c->source->p_url_address != NULL) {
-    c->status = napi_create_string_utf8(env, c->source->p_url_address, NAPI_AUTO_LENGTH, &uri);
-    REJECT_STATUS;
-  }
   c->status = napi_create_object(env, &source);
   REJECT_STATUS;
   c->status = napi_set_named_property(env, source, "name", name);
   REJECT_STATUS;
-  c->status = napi_set_named_property(env, source, "urlAddress", uri);
-  REJECT_STATUS;
+  if (c->source->p_url_address != NULL) {
+    napi_value uri;
+    c->status = napi_create_string_utf8(env, c->source->p_url_address, NAPI_AUTO_LENGTH, &uri);
+    REJECT_STATUS;
+    c->status = napi_set_named_property(env, source, "urlAddress", uri);
+    REJECT_STATUS;
+  }
   c->status = napi_set_named_property(env, result, "source", source);
   REJECT_STATUS;
 

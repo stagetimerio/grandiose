@@ -141,6 +141,13 @@ describe("finder", () => {
     })
 })
 
+describe("receiver", () => {
+    test("a source with only a name has no urlAddress", async () => {
+        const receiver = await grandiose.receive({ source: { name: "HOST (nothing)" } })
+        expect(receiver.source).toEqual({ name: "HOST (nothing)" })
+    })
+})
+
 describe("routing", () => {
     test("routes to a source, clears and destroys", async () => {
         const name = uniqueName("routing")
