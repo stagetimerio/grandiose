@@ -1,14 +1,20 @@
 # Changelog
 
-## Unreleased
+## 0.2.1
 
 ### Fixed
-- Any rejected promise crashed the process (segfault) instead of rejecting. Examples: a duplicate sender name, invalid frame arguments, `video()` after `destroy()`. `rejectStatus` read the carrier after it was freed.
+- A rejected promise crashed the process (segfault) instead of rejecting. Invalid arguments and `video()` after `destroy()` caused this.
 - Error `code` strings were reversed (`"1004"` instead of `"4001"`).
 - `find()` without arguments rejected. It now uses the defaults, as the README shows.
-- A sender collected by the garbage collector without `destroy()` was never destroyed. It kept its NDI name until the process ended. The finalizer used a stale `napi_value` as its hint.
-- `sender.video()` rejects when `data` is smaller than `lineStrideBytes * yres`. Before, NDI read past the end of the buffer.
-- `destroy()` on a finder or sender leaked its promise carrier.
+- A sender that was garbage collected without `destroy()` kept its NDI source until the process ended. It is now destroyed.
+- `sender.video()` and `sender.audio()` now reject when `data` is smaller than the frame. Before, NDI read past the end of the buffer and sent that memory to receivers. Planar formats (UYVA, P216, PA16, I420, YV12, NV12) include all planes in the size check. (#1, #2)
+- `receive()` with a source that has only a `name` crashed Electron, or set `source.urlAddress` to a random value. `source` now has no `urlAddress` in this case. (#3)
+- `destroy()` on a finder or sender leaked memory.
+
+### Changed
+- `sender.video()` rejects an unknown `fourCC`, an `xres` or `yres` of 0 or less, and a `lineStrideBytes` smaller than one row of pixels.
+- `sender.audio()` rejects a `fourCC` other than `FOURCC_FLTp`, a `noChannels` or `noSamples` of 0 or less, and a `channelStrideBytes` smaller than `noSamples * 4`.
+- `npm install` now fails when the NDI SDK download fails. Before, the install passed without a working build.
 
 ## 0.2.0
 
