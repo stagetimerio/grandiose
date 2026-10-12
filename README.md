@@ -218,7 +218,7 @@ await sender.video({
   fourCC: grandiose.FOURCC_BGRA,
   pictureAspectRatio: 16 / 9,
   frameFormatType: grandiose.FORMAT_TYPE_PROGRESSIVE,
-  lineStrideBytes: 1920 * 4,   // BGRA = 4 bytes per pixel
+  lineStrideBytes: 1920 * 4,   // bytes per row; 0 = xres * bytes per pixel
   data: bgraBuffer,
   // timecode: BigInt(...)     // optional; omitted = NDI synthesizes one
 })
@@ -249,6 +249,20 @@ const name = sender.sourcename()
 // Clean up
 await sender.destroy()
 ```
+
+`sender.video()` and `sender.audio()` check the frame before NDI reads it. They reject with code `4001` when `data` is smaller than the frame:
+
+| fourCC | Bytes per pixel | `data` must hold at least |
+|--------|-----------------|---------------------------|
+| BGRA, BGRX, RGBA, RGBX | 4 | `lineStrideBytes * yres` |
+| UYVY | 2 | `lineStrideBytes * yres` |
+| UYVA | 2 | `lineStrideBytes * yres * 1.5` |
+| P216 | 2 | `lineStrideBytes * yres * 2` |
+| PA16 | 2 | `lineStrideBytes * yres * 3` |
+| I420, YV12, NV12 | 1 | `lineStrideBytes * yres * 1.5` |
+| FLTp (audio) | 4 per sample | `channelStrideBytes * noChannels` |
+
+`lineStrideBytes: 0` gives a row with no padding: `xres` times the bytes per pixel. A larger value adds padding to each row. A value smaller than one row rejects. `channelStrideBytes` must be at least `noSamples * 4`.
 
 Note: the `groups` option is not currently implemented on the sender — passing it has no effect. File an issue if you need it.
 

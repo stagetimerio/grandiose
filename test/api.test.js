@@ -83,7 +83,34 @@ describe("sender", () => {
             await expect(sender.video(videoFrame({ data: new Uint8Array(W * H * 4).buffer }))).rejects.toMatchObject(INVALID_ARGS)
             await expect(sender.video(videoFrame({ fourCC: undefined }))).rejects.toMatchObject(INVALID_ARGS)
             await expect(sender.video(videoFrame({ timecode: "now" }))).rejects.toMatchObject(INVALID_ARGS)
+            await expect(sender.video(videoFrame({ fourCC: 0x12345678 }))).rejects.toMatchObject(INVALID_ARGS)
+            await expect(sender.video(videoFrame({ xres: 0 }))).rejects.toMatchObject(INVALID_ARGS)
+            await expect(sender.video(videoFrame({ yres: -1 }))).rejects.toMatchObject(INVALID_ARGS)
+            await expect(sender.video(videoFrame({ lineStrideBytes: -W * 4 }))).rejects.toMatchObject(INVALID_ARGS)
+            await expect(sender.video(videoFrame({ lineStrideBytes: W * 4 - 1 }))).rejects.toMatchObject(INVALID_ARGS)
             await expect(sender.video(videoFrame())).resolves.toEqual({})
+        } finally {
+            await sender.destroy()
+        }
+    })
+
+    test.each([
+        ["BGRA", grandiose.FOURCC_BGRA, W * 4, W * H * 4],
+        ["UYVY", grandiose.FOURCC_UYVY, W * 2, W * H * 2],
+        ["UYVA", grandiose.FOURCC_UYVA, W * 2, W * H * 2 + W * H],
+        ["P216", grandiose.FOURCC_P216, W * 2, W * H * 2 * 2],
+        ["PA16", grandiose.FOURCC_PA16, W * 2, W * H * 2 * 3],
+        ["I420", grandiose.FOURCC_I420, W, W * H * 3 / 2],
+        ["YV12", grandiose.FOURCC_YV12, W, W * H * 3 / 2],
+        ["NV12", grandiose.FOURCC_NV12, W, W * H * 3 / 2]
+    ])("%s video needs the full frame in data", async (_, fourCC, lineStrideBytes, size) => {
+        const sender = await grandiose.send({ name: uniqueName(`size-${fourCC}`) })
+        try {
+            for (const stride of [lineStrideBytes, 0]) {
+                const frame = (bytes) => videoFrame({ fourCC, lineStrideBytes: stride, data: Buffer.alloc(bytes) })
+                await expect(sender.video(frame(size - 1))).rejects.toMatchObject(INVALID_ARGS)
+                await expect(sender.video(frame(size))).resolves.toEqual({})
+            }
         } finally {
             await sender.destroy()
         }

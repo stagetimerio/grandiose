@@ -298,6 +298,50 @@ napi_value send(napi_env env, napi_callback_info info) {
 }
 
 
+// Bytes per pixel in the first plane, or 0 for an unsupported FourCC.
+static int32_t videoPixelBytes(int32_t fourCC) {
+  switch (fourCC) {
+    case NDIlib_FourCC_video_type_BGRA:
+    case NDIlib_FourCC_video_type_BGRX:
+    case NDIlib_FourCC_video_type_RGBA:
+    case NDIlib_FourCC_video_type_RGBX:
+      return 4;
+    case NDIlib_FourCC_video_type_UYVY:
+    case NDIlib_FourCC_video_type_UYVA:
+    case NDIlib_FourCC_video_type_P216:
+    case NDIlib_FourCC_video_type_PA16:
+      return 2;
+    case NDIlib_FourCC_video_type_YV12:
+    case NDIlib_FourCC_video_type_I420:
+    case NDIlib_FourCC_video_type_NV12:
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+// Bytes NDI reads from p_data. Plane offsets follow the NDI SDK frame-types docs.
+static uint64_t videoFrameBytes(int32_t fourCC, uint64_t yres, uint64_t stride) {
+  uint64_t plane = stride * yres;
+  uint64_t halfStride = (stride + 1) / 2;
+  uint64_t halfRows = (yres + 1) / 2;
+  switch (fourCC) {
+    case NDIlib_FourCC_video_type_UYVA:
+      return plane + halfStride * yres;
+    case NDIlib_FourCC_video_type_P216:
+      return 2 * plane;
+    case NDIlib_FourCC_video_type_PA16:
+      return 3 * plane;
+    case NDIlib_FourCC_video_type_YV12:
+    case NDIlib_FourCC_video_type_I420:
+      return plane + 2 * halfStride * halfRows;
+    case NDIlib_FourCC_video_type_NV12:
+      return plane + stride * halfRows;
+    default:
+      return plane;
+  }
+}
+
 void videoSendExecute(napi_env env, void* data) {
   sendDataCarrier* c = (sendDataCarrier*) data;
 
@@ -463,6 +507,33 @@ napi_value videoSend(napi_env env, napi_callback_info info) {
     c->status = napi_get_value_int32(env, param, &c->videoFrame.line_stride_in_bytes);
     REJECT_RETURN;
 
+    c->status = napi_get_named_property(env, config, "fourCC", &param);
+    REJECT_RETURN;
+    c->status = napi_typeof(env, param, &type);
+    REJECT_RETURN;
+    if (type != napi_number) REJECT_ERROR_RETURN(
+      "fourCC value must be a number",
+      GRANDIOSE_INVALID_ARGS);
+    int32_t fourCC;
+    c->status = napi_get_value_int32(env, param, &fourCC);
+    REJECT_RETURN;
+    c->videoFrame.FourCC = (NDIlib_FourCC_video_type_e) fourCC;
+
+    int32_t pixelBytes = videoPixelBytes(fourCC);
+    if (pixelBytes == 0) REJECT_ERROR_RETURN(
+      "fourCC is not a supported video format",
+      GRANDIOSE_INVALID_ARGS);
+    if (c->videoFrame.xres <= 0 || c->videoFrame.yres <= 0) REJECT_ERROR_RETURN(
+      "xres and yres must be positive",
+      GRANDIOSE_INVALID_ARGS);
+    int64_t rowBytes = (int64_t) pixelBytes * c->videoFrame.xres;
+    if (c->videoFrame.line_stride_in_bytes == 0 && rowBytes <= INT32_MAX)
+      c->videoFrame.line_stride_in_bytes = (int) rowBytes;
+    if (c->videoFrame.line_stride_in_bytes < rowBytes)
+      REJECT_ERROR_RETURN(
+        "lineStrideBytes is smaller than one row of pixels",
+        GRANDIOSE_INVALID_ARGS);
+
     napi_value videoBuffer;
     c->status = napi_get_named_property(env, config, "data", &videoBuffer);
     REJECT_RETURN;
@@ -475,28 +546,13 @@ napi_value videoSend(napi_env env, napi_callback_info info) {
     size_t length;
     c->status = napi_get_buffer_info(env, videoBuffer, &data, &length);
     REJECT_RETURN;
-    // Lower bound for every FourCC; planar formats carry more planes after it.
-    if ((int64_t) c->videoFrame.line_stride_in_bytes * c->videoFrame.yres > (int64_t) length)
+    if (videoFrameBytes(fourCC, c->videoFrame.yres, c->videoFrame.line_stride_in_bytes) > length)
       REJECT_ERROR_RETURN(
-        "data buffer is smaller than lineStrideBytes * yres",
+        "data buffer is smaller than the frame",
         GRANDIOSE_INVALID_ARGS);
     c->videoFrame.p_data = (uint8_t*) data;
     c->status = napi_create_reference(env, videoBuffer, 1, &c->sourceBufferRef);
     REJECT_RETURN;
-
-
-    c->status = napi_get_named_property(env, config, "fourCC", &param);
-    REJECT_RETURN;
-    c->status = napi_typeof(env, param, &type);
-    REJECT_RETURN;
-    if (type != napi_number) REJECT_ERROR_RETURN(
-      "fourCC value must be a number",
-      GRANDIOSE_INVALID_ARGS);
-    int32_t fourCC;
-    c->status = napi_get_value_int32(env, param, &fourCC);
-    REJECT_RETURN;
-    // TODO: checks
-    c->videoFrame.FourCC = (NDIlib_FourCC_video_type_e) fourCC; // TODO
 
   } else REJECT_ERROR_RETURN(
       "frame not provided",
