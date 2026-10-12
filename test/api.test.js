@@ -22,13 +22,14 @@ const videoFrame = (overrides = {}) => ({
     data: Buffer.alloc(W * H * 4),
     ...overrides
 })
-const audioFrame = () => ({
+const audioFrame = (overrides = {}) => ({
     sampleRate: 48000,
     noChannels: 2,
     noSamples: 480,
     channelStrideBytes: 480 * 4,
     fourCC: grandiose.FOURCC_FLTp,
-    data: Buffer.alloc(480 * 2 * 4)
+    data: Buffer.alloc(480 * 2 * 4),
+    ...overrides
 })
 const INVALID_ARGS = { code: "4001" }
 
@@ -111,6 +112,22 @@ describe("sender", () => {
                 await expect(sender.video(frame(size - 1))).rejects.toMatchObject(INVALID_ARGS)
                 await expect(sender.video(frame(size))).resolves.toEqual({})
             }
+        } finally {
+            await sender.destroy()
+        }
+    })
+
+    test("rejects invalid audio frames with code 4001", async () => {
+        const sender = await grandiose.send({ name: uniqueName("badaudio") })
+        try {
+            await expect(sender.audio(audioFrame({ data: Buffer.alloc(480 * 2 * 4 - 1) }))).rejects.toMatchObject(INVALID_ARGS)
+            await expect(sender.audio(audioFrame({ noChannels: 3 }))).rejects.toMatchObject(INVALID_ARGS)
+            await expect(sender.audio(audioFrame({ noChannels: 0 }))).rejects.toMatchObject(INVALID_ARGS)
+            await expect(sender.audio(audioFrame({ noSamples: -1 }))).rejects.toMatchObject(INVALID_ARGS)
+            await expect(sender.audio(audioFrame({ channelStrideBytes: 480 * 4 - 1 }))).rejects.toMatchObject(INVALID_ARGS)
+            await expect(sender.audio(audioFrame({ channelStrideBytes: -1 }))).rejects.toMatchObject(INVALID_ARGS)
+            await expect(sender.audio(audioFrame({ fourCC: grandiose.FOURCC_BGRA }))).rejects.toMatchObject(INVALID_ARGS)
+            await expect(sender.audio(audioFrame())).resolves.toEqual({})
         } finally {
             await sender.destroy()
         }

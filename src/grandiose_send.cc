@@ -700,6 +700,29 @@ napi_value audioSend(napi_env env, napi_callback_info info) {
     c->status = napi_get_value_int32(env, param, &c->audioFrame.channel_stride_in_bytes);
     REJECT_RETURN;
 
+    c->status = napi_get_named_property(env, config, "fourCC", &param);
+    REJECT_RETURN;
+    c->status = napi_typeof(env, param, &type);
+    REJECT_RETURN;
+    if (type != napi_number) REJECT_ERROR_RETURN(
+      "fourCC value must be a number",
+      GRANDIOSE_INVALID_ARGS);
+    int32_t fourCC;
+    c->status = napi_get_value_int32(env, param, &fourCC);
+    REJECT_RETURN;
+    c->audioFrame.FourCC = (NDIlib_FourCC_audio_type_e)fourCC;
+
+    if (fourCC != NDIlib_FourCC_audio_type_FLTP) REJECT_ERROR_RETURN(
+      "fourCC must be FLTp",
+      GRANDIOSE_INVALID_ARGS);
+    if (c->audioFrame.no_channels <= 0 || c->audioFrame.no_samples <= 0) REJECT_ERROR_RETURN(
+      "noChannels and noSamples must be positive",
+      GRANDIOSE_INVALID_ARGS);
+    if (c->audioFrame.channel_stride_in_bytes < (int64_t) c->audioFrame.no_samples * 4)
+      REJECT_ERROR_RETURN(
+        "channelStrideBytes is smaller than noSamples * 4",
+        GRANDIOSE_INVALID_ARGS);
+
     napi_value audioBuffer;
     c->status = napi_get_named_property(env, config, "data", &audioBuffer);
     REJECT_RETURN;
@@ -712,21 +735,13 @@ napi_value audioSend(napi_env env, napi_callback_info info) {
     size_t length;
     c->status = napi_get_buffer_info(env, audioBuffer, &data, &length);
     REJECT_RETURN;
+    if ((uint64_t) c->audioFrame.channel_stride_in_bytes * c->audioFrame.no_channels > length)
+      REJECT_ERROR_RETURN(
+        "data buffer is smaller than channelStrideBytes * noChannels",
+        GRANDIOSE_INVALID_ARGS);
     c->audioFrame.p_data = (uint8_t *) data;
     c->status = napi_create_reference(env, audioBuffer, 1, &c->sourceBufferRef);
     REJECT_RETURN;
-
-    c->status = napi_get_named_property(env, config, "fourCC", &param);
-    REJECT_RETURN;
-    c->status = napi_typeof(env, param, &type);
-    REJECT_RETURN;
-    if (type != napi_number) REJECT_ERROR_RETURN(
-      "fourCC value must be a number",
-      GRANDIOSE_INVALID_ARGS);
-    int32_t fourCC;
-    c->status = napi_get_value_int32(env, param, &fourCC);
-    REJECT_RETURN;
-    c->audioFrame.FourCC = (NDIlib_FourCC_audio_type_e)fourCC;
 
   } else REJECT_ERROR_RETURN(
       "frame not provided",
